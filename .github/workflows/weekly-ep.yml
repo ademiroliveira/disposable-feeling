@@ -40,9 +40,12 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Through the environment, never interpolated into the script:
+          # a workflow_dispatch input is untrusted text.
+          END: ${{ inputs.end }}
         run: |
-          if [ -n "${{ inputs.end }}" ]; then
-            npm run ep -- --end "${{ inputs.end }}"
+          if [ -n "$END" ]; then
+            npm run ep -- --end "$END"
           else
             npm run ep
           fi

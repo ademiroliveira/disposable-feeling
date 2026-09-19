@@ -9,8 +9,17 @@
 import type { SignalReading } from '../../schema/mood-vector.ts';
 import { parseIsoDate } from '../../lib/dates.ts';
 import { getJson } from '../../lib/http.ts';
+import { makeThrottle } from '../../lib/throttle.ts';
 
 const BASE = 'https://api.coingecko.com/api/v3';
+
+/**
+ * CoinGecko's free tier is a handful of calls a minute, counted per IP. Two
+ * calls a day over a thirty-day backfill is sixty calls in a burst, which it
+ * refuses most of the way through — and a refused day is a hole in the
+ * baseline every live day is scored against.
+ */
+const throttled = makeThrottle(Number(process.env.COINGECKO_MIN_INTERVAL_MS ?? 3000));
 
 /** Two assets: one macro, one high-beta. Their disagreement is a signal too. */
 const COINS = ['bitcoin', 'ethereum'] as const;
@@ -52,9 +61,11 @@ async function fetchCoin(coin: string, date: string): Promise<number[]> {
     to: String(end),
   });
   if (key) params.set('x_cg_demo_api_key', key);
-  const res = await getJson<MarketChart>(
-    `${BASE}/coins/${coin}/market_chart/range?${params.toString()}`,
-    { retries: 3, timeoutMs: 30_000 },
+  const res = await throttled(() =>
+    getJson<MarketChart>(
+      `${BASE}/coins/${coin}/market_chart/range?${params.toString()}`,
+      { retries: 5, timeoutMs: 30_000 },
+    ),
   );
   return (res.prices ?? []).map(([, price]) => price).filter(Number.isFinite);
 }

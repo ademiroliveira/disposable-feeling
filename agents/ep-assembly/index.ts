@@ -85,6 +85,12 @@ export interface AssembleOptions {
   /** Defaults to the emission's own audio path. */
   resolveAudio?: (emission: Emission) => string | null;
   crossfadeSeconds?: number;
+  /**
+   * Defaults to the last playable day. Pass the window's end instead, so an
+   * EP whose final day already expired is still named after the week it
+   * covers rather than after the last track that survived.
+   */
+  id?: string;
 }
 
 export async function assembleEp(
@@ -118,7 +124,7 @@ export async function assembleEp(
   const durations = await Promise.all(inputs.map(audioDuration));
 
   const dates = playable.map((e) => e.date).sort();
-  const id = `ep-${dates[dates.length - 1]}`;
+  const id = opts.id ?? `ep-${dates[dates.length - 1]}`;
   const dir = ensureDir(outPath('eps', id));
   const audioPath = join(dir, `${id}.mp3`);
 

@@ -13,6 +13,7 @@
 import type { SignalReading } from '../../schema/mood-vector.ts';
 import { gdeltStamp } from '../../lib/dates.ts';
 import { getText } from '../../lib/http.ts';
+import { makeThrottle } from '../../lib/throttle.ts';
 
 const BASE = 'https://api.gdeltproject.org/api/v2/doc/doc';
 
@@ -26,22 +27,7 @@ const DEFAULT_QUERY =
 
 const MIN_INTERVAL_MS = Number(process.env.GDELT_MIN_INTERVAL_MS ?? 6000);
 
-let lastRequestAt = 0;
-
-/** Serializes GDELT calls and keeps them at least MIN_INTERVAL_MS apart. */
-let queue: Promise<unknown> = Promise.resolve();
-
-function throttled<T>(fn: () => Promise<T>): Promise<T> {
-  const run = queue.then(async () => {
-    const wait = lastRequestAt + MIN_INTERVAL_MS - Date.now();
-    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
-    lastRequestAt = Date.now();
-    return fn();
-  });
-  // Keep the chain alive even when one call rejects.
-  queue = run.catch(() => undefined);
-  return run;
-}
+const throttled = makeThrottle(MIN_INTERVAL_MS);
 
 interface TimelinePoint {
   date: string;

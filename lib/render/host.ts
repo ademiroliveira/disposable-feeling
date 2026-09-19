@@ -38,6 +38,13 @@ export interface RenderHost {
   ): Promise<{ files: Record<string, string>; meta: T }>;
   /** Run a sketch that returns a plain value instead of bytes. */
   evaluate<T>(options: SketchOptions): Promise<T>;
+  /**
+   * False once the browser or the page has gone. A long backfill shares one
+   * host across thirty days, and a Chromium that dies on day three otherwise
+   * fails the remaining twenty-seven with the same detached-frame error and
+   * produces a report drawn from two days.
+   */
+  isAlive(): boolean;
   close(): Promise<void>;
 }
 
@@ -221,6 +228,10 @@ export async function openRenderHost(): Promise<RenderHost> {
   return {
     async evaluate<T>(options: SketchOptions): Promise<T> {
       return run<T>(options);
+    },
+
+    isAlive(): boolean {
+      return browser.connected && !page.isClosed();
     },
 
     async renderToFiles<T extends PublishResult>(

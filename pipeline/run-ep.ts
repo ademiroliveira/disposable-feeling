@@ -63,6 +63,7 @@ for (const emission of emissions) {
 
 const ep = await publishEp(
   await assembleEp(emissions, {
+    id: `ep-${end}`,
     resolveAudio: (emission: Emission) => localAudio.get(emission.date) ?? null,
   }),
 );
