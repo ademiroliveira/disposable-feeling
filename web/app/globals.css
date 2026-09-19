@@ -1,0 +1,187 @@
+/*
+ * The site is the archive, not the artwork — the posters carry the colour.
+ * Paper and ink, wide margins, one accent borrowed from whichever day you are
+ * looking at.
+ */
+
+:root {
+  --paper: #edece6;
+  --ink: #16161a;
+  --muted: #6c6b66;
+  --rule: rgba(22, 22, 26, 0.14);
+  --gap: clamp(1.25rem, 3vw, 2.5rem);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #131316;
+    --ink: #e9e8e2;
+    --muted: #8c8b85;
+    --rule: rgba(233, 232, 226, 0.16);
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: ui-sans-serif, system-ui, "Liberation Sans", "DejaVu Sans", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; }
+
+main {
+  max-width: 78rem;
+  margin: 0 auto;
+  padding: clamp(2rem, 6vw, 5rem) var(--gap) 6rem;
+}
+
+.masthead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1.25rem;
+  margin-bottom: clamp(2rem, 5vw, 3.5rem);
+}
+
+.masthead h1 {
+  font-size: clamp(1.4rem, 3.4vw, 2.1rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.masthead p {
+  margin: 0;
+  max-width: 34rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.mono {
+  font-family: ui-monospace, "Liberation Mono", "DejaVu Sans Mono", monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: var(--gap);
+}
+
+.card {
+  display: block;
+  text-decoration: none;
+}
+
+.card figure {
+  margin: 0 0 0.75rem;
+  aspect-ratio: 5 / 7;
+  background: var(--rule);
+  overflow: hidden;
+}
+
+.card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: opacity 160ms ease;
+}
+
+.card:hover img { opacity: 0.86; }
+
+.card.expired img { filter: grayscale(0.4) contrast(0.92); opacity: 0.7; }
+
+.card h2 {
+  font-size: 1rem;
+  font-weight: 550;
+  margin: 0 0 0.2rem;
+  letter-spacing: -0.01em;
+}
+
+.emission {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: clamp(2rem, 5vw, 4rem);
+  align-items: start;
+}
+
+@media (max-width: 52rem) {
+  .emission { grid-template-columns: minmax(0, 1fr); }
+}
+
+.emission img {
+  width: 100%;
+  display: block;
+  border: 1px solid var(--rule);
+}
+
+.emission h1 {
+  font-size: clamp(1.8rem, 5vw, 3rem);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  margin: 0 0 0.75rem;
+  font-weight: 600;
+}
+
+audio { width: 100%; margin: 1.5rem 0; }
+
+dl.vector {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem 1.5rem;
+  margin: 1.75rem 0 0;
+  border-top: 1px solid var(--rule);
+  padding-top: 1.25rem;
+}
+
+dl.vector div { display: flex; justify-content: space-between; gap: 1rem; }
+dl.vector dt { color: var(--muted); }
+dl.vector dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+.themes {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0;
+  margin: 1.25rem 0 0;
+}
+
+.themes li {
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 0.2rem 0.7rem;
+}
+
+.notice {
+  border: 1px dashed var(--rule);
+  padding: 1rem 1.15rem;
+  margin: 1.5rem 0;
+  line-height: 1.55;
+}
+
+.empty {
+  border: 1px dashed var(--rule);
+  padding: 2.5rem;
+  text-align: center;
+  line-height: 1.6;
+}
+
+footer {
+  margin-top: 5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--rule);
+  line-height: 1.7;
+}

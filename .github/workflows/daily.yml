@@ -1,0 +1,79 @@
+# One emission a day.
+#
+# GitHub Actions rather than a Vercel cron: rendering audio, a poster and the
+# weekly EP takes minutes, which is well past Vercel's serverless function
+# limit. Vercel only hosts the site.
+
+name: daily emission
+
+on:
+  schedule:
+    # 04:10 UTC — after the previous UTC day has closed everywhere, and off the
+    # hour because that is when every other cron on GitHub fires.
+    - cron: '10 4 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Date to emit (YYYY-MM-DD). Defaults to today.'
+        required: false
+
+concurrency:
+  group: daily-emission
+  cancel-in-progress: false
+
+jobs:
+  emit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
+      # The mood vector is scored against a rolling 30-day baseline, which
+      # lives in the signal cache. Without this the first run of every day
+      # would score everything as zero.
+      - name: Restore the signal cache
+        uses: actions/cache@v4
+        with:
+          path: out/signals
+          key: signals-${{ github.run_id }}
+          restore-keys: signals-
+
+      - name: Emit
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # The runner image ships Google Chrome; puppeteer-core never
+          # downloads a browser of its own.
+          PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome
+        run: |
+          if [ -n "${{ inputs.date }}" ]; then
+            npm run daily -- --date "${{ inputs.date }}"
+          else
+            npm run daily
+          fi
+
+      # Worth keeping for a few days: if Supabase upload failed, this is the
+      # only copy of a day that cannot be regenerated identically once the
+      # signal APIs have moved on.
+      - name: Keep the emission as an artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emission-${{ github.run_id }}
+          path: out/emissions
+          retention-days: 7
+          if-no-files-found: ignore
