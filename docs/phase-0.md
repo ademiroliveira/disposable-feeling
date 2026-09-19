@@ -11,9 +11,9 @@ npm run backfill -- --days 30 --end 2026-09-18
 npm run variance                    # re-scores the same days without rendering
 ```
 
-The raw report and every day's mood vector are written to
-`out/variance/2026-09-18-30d.json`, which is git-ignored — this file is the
-record.
+The raw report is written to `out/variance/2026-09-18-30d.json`, which is
+git-ignored. This file is the record, and [phase-0-days.md](phase-0-days.md)
+has all thirty days individually.
 
 ## Why this ran first
 
