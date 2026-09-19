@@ -1,14 +1,14 @@
-# The weekly EP.
+# The EP, on demand.
 #
-# Seven tracks, one per day of the expiry window. This has to run before the
-# oldest of them is deleted, which is why it is scheduled a few hours after the
-# daily job rather than at some convenient hour of its own.
+# The scheduled assembly rides Sunday's daily run (see daily.yml): seven tracks
+# over a seven-day expiry leaves no slack, so the EP has to follow the last
+# emission of the week rather than race the sweep from its own cron. This
+# workflow is the manual path — re-running a week that failed, or assembling
+# one that ended on a different day.
 
-name: weekly ep
+name: ep
 
 on:
-  schedule:
-    - cron: '30 6 * * 1'
   workflow_dispatch:
     inputs:
       end:

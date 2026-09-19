@@ -24,6 +24,7 @@ import { parseFlags } from '../lib/cli.ts';
 import { addDays, dateRange, isoDate } from '../lib/dates.ts';
 import { describeError } from '../lib/http.ts';
 import { ensureParent, outPath } from '../lib/paths.ts';
+import { publishSignals, supabaseConfigured } from '../lib/store.ts';
 import { openRenderHost } from '../lib/render/host.ts';
 import { describeEmission, emit } from './emit.ts';
 import { analyse, formatReport } from './variance.ts';
@@ -49,6 +50,7 @@ const missingBySource = new Map<string, number>();
 for (const date of dates) {
   const started = Date.now();
   const day = await collectSignals(date, { sources, refresh: flags.bool('refresh') });
+  await publishSignals(day);
   for (const missing of day.missing) {
     missingBySource.set(missing.source, (missingBySource.get(missing.source) ?? 0) + 1);
   }
@@ -67,7 +69,11 @@ if (missingBySource.size > 0) {
 }
 
 if (flags.bool('signals-only')) {
-  console.log('\nsignal cache warm. Re-run without --signals-only to render.');
+  console.log(
+    supabaseConfigured()
+      ? '\nbaseline warm, in the cache and in Supabase.'
+      : '\nbaseline warm in the local cache. Set SUPABASE_URL to make it durable.',
+  );
   process.exit(0);
 }
 

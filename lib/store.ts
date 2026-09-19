@@ -15,9 +15,10 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { basename } from 'node:path';
 
 import type { Ep } from '../agents/ep-assembly/index.ts';
-import type { Emission } from '../schema/mood-vector.ts';
+import { loadHistory, readCachedSignals, writeCachedSignals } from '../agents/signals/index.ts';
+import type { DaySignals, Emission } from '../schema/mood-vector.ts';
 import { EXPIRY_DAYS } from '../schema/mood-vector.ts';
-import { isoDate } from './dates.ts';
+import { addDays, dateRange, isoDate } from './dates.ts';
 import { ensureParent, outPath } from './paths.ts';
 
 export interface EmissionFiles {
@@ -264,6 +265,73 @@ export const supabaseStore: Store = {
     return touched;
   },
 };
+
+/* --------------------------------- signals -------------------------------- */
+
+interface SignalRow {
+  date: string;
+  readings: DaySignals['readings'];
+  missing: DaySignals['missing'];
+}
+
+/**
+ * Keep a day's signals somewhere that outlives the runner.
+ *
+ * The local cache under `out/signals/` is a fast path, not storage: on CI it
+ * is a GitHub Actions cache, which is evicted after seven days unused. Losing
+ * it does not fail the build — `score()` returns 0 without history, so the
+ * pipeline would publish a month of flat days and say nothing. Hence a table.
+ */
+export async function publishSignals(day: DaySignals): Promise<void> {
+  writeCachedSignals(day);
+  if (!supabaseConfigured()) return;
+
+  const supabase = await client();
+  const { error } = await supabase.from('signals').upsert(
+    { date: day.date, readings: day.readings, missing: day.missing },
+    { onConflict: 'date' },
+  );
+  if (error) throw new Error(`supabase signals ${day.date}: ${error.message}`);
+}
+
+/**
+ * The previous `days` days of signals: local cache first, Supabase for
+ * whatever is missing, and anything fetched is written back to the cache so
+ * the next run of the day does not pay for it again.
+ */
+export async function loadSignalHistory(
+  endDate: string,
+  days = 30,
+): Promise<DaySignals[]> {
+  const local = loadHistory(endDate, days);
+  if (!supabaseConfigured()) return local;
+
+  const wanted = dateRange(addDays(endDate, -1), days);
+  const have = new Set(local.map((day) => day.date));
+  const gaps = wanted.filter((date) => !have.has(date));
+  if (gaps.length === 0) return local;
+
+  const supabase = await client();
+  const { data, error } = await supabase
+    .from('signals')
+    .select('*')
+    .in('date', gaps);
+  if (error) throw new Error(`supabase signal history: ${error.message}`);
+
+  const fetched = (data ?? []).map((row) => {
+    const signalRow = row as SignalRow;
+    const day: DaySignals = {
+      date: signalRow.date,
+      readings: signalRow.readings ?? [],
+      missing: signalRow.missing ?? [],
+    };
+    // Warm the cache so a re-run inside the same job is local.
+    if (!readCachedSignals(day.date)) writeCachedSignals(day);
+    return day;
+  });
+
+  return [...local, ...fetched].sort((a, b) => a.date.localeCompare(b.date));
+}
 
 /* ----------------------------------- EPs --------------------------------- */
 

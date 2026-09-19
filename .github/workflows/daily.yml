@@ -8,9 +8,17 @@ name: daily emission
 
 on:
   schedule:
-    # 04:10 UTC — after the previous UTC day has closed everywhere, and off the
-    # hour because that is when every other cron on GitHub fires.
-    - cron: '10 4 * * *'
+    # 23:30 UTC — late enough that the day being emitted is nearly complete.
+    #
+    # An emission is dated for the day it reads, and the signals are fetched
+    # when the job runs, so an early-morning slot would read each day from its
+    # first few hours. Phase 0 scored complete 24-hour days; running early
+    # would mean production and the gate were measuring different things and
+    # the gate's verdict would not transfer. Emitting for *yesterday* instead
+    # would fix that and break weather, whose history is a paid plan — so the
+    # fix is to run late on the same day. Off the half hour because :00 is when
+    # every other cron on GitHub fires.
+    - cron: '30 23 * * *'
   workflow_dispatch:
     inputs:
       date:
@@ -67,6 +75,25 @@ jobs:
             npm run daily -- --date "$DATE"
           else
             npm run daily
+          fi
+
+      # The EP rides the last emission of the week rather than its own cron.
+      #
+      # Seven tracks over a seven-day expiry leaves no slack: a Monday track is
+      # gone at Monday+7 00:00 UTC, so an independently scheduled Monday job
+      # would be racing the sweep by minutes. Running it here, straight after
+      # Sunday's emission, makes the oldest track exactly six days old and
+      # removes the race instead of tuning it.
+      - name: Assemble the week's EP (Sundays)
+        if: success()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ "$(date -u +%u)" = "7" ]; then
+            npm run ep
+          else
+            echo "Not Sunday — the EP runs after the last emission of the week."
           fi
 
       # Worth keeping for a few days: if Supabase upload failed, this is the

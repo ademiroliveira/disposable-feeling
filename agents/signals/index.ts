@@ -45,6 +45,10 @@ export function signalsCachePath(date: string): string {
   return outPath('signals', `${date}.json`);
 }
 
+export function writeCachedSignals(day: DaySignals): void {
+  writeFileSync(ensureParent(signalsCachePath(day.date)), JSON.stringify(day, null, 2));
+}
+
 export function readCachedSignals(date: string): DaySignals | null {
   const file = signalsCachePath(date);
   if (!existsSync(file)) return null;
@@ -108,7 +112,7 @@ export async function collectSignals(
     ],
   };
 
-  writeFileSync(ensureParent(signalsCachePath(date)), JSON.stringify(day, null, 2));
+  writeCachedSignals(day);
   return day;
 }
 

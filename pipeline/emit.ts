@@ -6,7 +6,7 @@
 import { existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { collectSignals, loadHistory } from '../agents/signals/index.ts';
+import { collectSignals } from '../agents/signals/index.ts';
 import { synthesizeMood } from '../agents/synthesis/index.ts';
 import { renderMusic } from '../agents/music/index.ts';
 import { renderPoster } from '../agents/poster/index.ts';
@@ -19,7 +19,7 @@ import type {
 import { findFfmpeg, masterToMp3 } from '../lib/ffmpeg.ts';
 import { emissionDir } from '../lib/paths.ts';
 import type { RenderHost } from '../lib/render/host.ts';
-import { expiresAt, publishEmission } from '../lib/store.ts';
+import { expiresAt, loadSignalHistory, publishEmission, publishSignals } from '../lib/store.ts';
 
 export interface EmitOptions {
   host: RenderHost;
@@ -44,11 +44,15 @@ export interface EmitResult {
 }
 
 export async function emit(date: string, opts: EmitOptions): Promise<EmitResult> {
-  const history = loadHistory(date, opts.baselineDays ?? 30);
+  const history = await loadSignalHistory(date, opts.baselineDays ?? 30);
   const signals = await collectSignals(date, {
     refresh: opts.refreshSignals,
     sources: opts.sources,
   });
+
+  // The day's own signals are part of tomorrow's baseline, so they are stored
+  // whether or not the emission itself is published.
+  await publishSignals(signals);
 
   const mood = await synthesizeMood(signals, { history, offline: opts.offline });
 

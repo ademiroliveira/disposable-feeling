@@ -157,6 +157,13 @@ Without Supabase configured, everything lands in `./out` and the site reads it
 from there — that is how Phase 0 runs. With it, the same emission is also
 published to Postgres and three public buckets.
 
+Each day's raw signals go to Postgres too, and that is not a nicety. The
+baseline is read from `out/signals/`, which on CI is a GitHub Actions cache —
+evicted after seven days unused. Losing it raises nothing: `score()` returns 0
+without history, so the pipeline would publish a month of characterless days
+and say so nowhere. The table is what makes the baseline durable; the cache
+stays as the fast path.
+
 Expiry is the load-bearing part. After seven days, audio and poster are
 deleted; the date, the mood vector, the title, the render parameters and the
 thumbnail survive. Storage stays flat forever, so the free tier holds
@@ -170,10 +177,19 @@ each other.
 
 ## Deployment
 
-- **GitHub Actions** runs the pipeline (`.github/workflows/daily.yml`,
-  `weekly-ep.yml`). Rendering audio, a poster and an EP takes minutes, well past
-  Vercel's serverless function limits. The daily job caches `out/signals` so the
-  30-day baseline survives between runs.
+- **GitHub Actions** runs the pipeline. Rendering audio, a poster and an EP
+  takes minutes, well past Vercel's serverless function limits.
+  - `daily.yml` at **23:30 UTC**, emitting for that same day. Late because an
+    emission is dated for the day it reads: run it in the morning and every day
+    is read from its first few hours, which is not what Phase 0 scored.
+    Emitting for yesterday instead would fix that and break weather, whose
+    history is a paid plan.
+  - The **EP rides Sunday's run** rather than its own cron. Seven tracks over a
+    seven-day expiry leaves no slack, so an independently scheduled Monday job
+    would race the sweep by minutes. `weekly-ep.yml` is the manual re-run path.
+  - `warm-baseline.yml` fills the rolling baseline before the first emission —
+    run it once before turning the daily job on. Without it the first fortnight
+    scores every dimension at zero and publishes flat days without complaining.
 - **Supabase** holds the emissions and the media: `psql "$SUPABASE_DB_URL" -f
   supabase/schema.sql`.
 - **Vercel** hosts `web/` and nothing else. Note that the Hobby plan is

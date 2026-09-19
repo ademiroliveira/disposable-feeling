@@ -36,6 +36,25 @@ create index if not exists emissions_expires_at_idx
 create index if not exists emissions_date_desc_idx
   on public.emissions (date desc);
 
+-- The rolling baseline lives here, not in a CI cache.
+--
+-- Every mood vector is scored as a deviation from the previous thirty days, so
+-- losing this table does not raise an error — it silently scores every
+-- dimension at zero and publishes a month of characterless days. A GitHub
+-- Actions cache is evicted after seven days unused, which makes it exactly the
+-- wrong place to keep something whose absence is invisible.
+create table if not exists public.signals (
+  date       date primary key,
+  -- One row per day: every reading, in each metric's own units. Normalization
+  -- against the baseline happens in synthesis, so raw values are what has to
+  -- survive.
+  readings   jsonb       not null,
+  -- Sources that were asked and did not answer, with the reason. Kept because
+  -- "no weather" and "average weather" are different facts.
+  missing    jsonb       not null default '[]'::jsonb,
+  fetched_at timestamptz not null default now()
+);
+
 create table if not exists public.eps (
   id                text primary key,
   from_date         date        not null,
@@ -51,6 +70,7 @@ create table if not exists public.eps (
 -- which bypasses RLS.
 alter table public.emissions enable row level security;
 alter table public.eps       enable row level security;
+alter table public.signals   enable row level security;
 
 drop policy if exists "emissions are public" on public.emissions;
 create policy "emissions are public"
@@ -60,6 +80,13 @@ create policy "emissions are public"
 drop policy if exists "eps are public" on public.eps;
 create policy "eps are public"
   on public.eps for select
+  using (true);
+
+-- Readable so the archive can show what a day was made from; written only by
+-- the pipeline's service role.
+drop policy if exists "signals are public" on public.signals;
+create policy "signals are public"
+  on public.signals for select
   using (true);
 
 -- Storage. Public buckets: the site links straight at them, and nothing here

@@ -1,0 +1,85 @@
+# Fill the rolling baseline before the first real emission.
+#
+# Every mood vector is scored as a deviation from the previous thirty days. On
+# a cold start there is no baseline, so every dimension scores zero and the
+# pipeline publishes characterless days without raising anything — the first
+# fortnight of the archive would be its flattest, permanently. Run this once
+# before turning the daily job on, and again after any gap long enough to lose
+# the cache.
+#
+# It is also the cheapest test of whether GDELT answers at all. Its rate limit
+# applies to the egress IP rather than to the client, so a shared address gets
+# refused however politely requests are spaced. A runner has its own.
+
+name: warm baseline
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 'How many days of history to fetch.'
+        required: false
+        default: '30'
+      end:
+        description: 'Last day to fetch (YYYY-MM-DD). Defaults to yesterday.'
+        required: false
+
+concurrency:
+  group: signals
+
+jobs:
+  warm:
+    runs-on: ubuntu-latest
+    # Thirty days at GDELT's one-request-per-five-seconds, three requests a
+    # day, plus CoinGecko's own throttle.
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Restore the signal cache
+        uses: actions/cache@v4
+        with:
+          path: out/signals
+          key: signals-${{ github.run_id }}
+          restore-keys: signals-
+
+      - name: Fetch
+        env:
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DAYS: ${{ inputs.days }}
+          END: ${{ inputs.end }}
+        run: |
+          args="--days ${DAYS:-30} --signals-only"
+          if [ -n "$END" ]; then args="$args --end $END"; fi
+          npm run backfill -- $args
+
+      # Whether GDELT answered is the headline result of this run, and it is
+      # buried in thirty lines of per-day output otherwise.
+      - name: Did GDELT answer?
+        if: always()
+        run: |
+          total=$(ls out/signals/*.json 2>/dev/null | wc -l)
+          with=$(grep -l '"source": *"gdelt"' out/signals/*.json 2>/dev/null \
+                 | xargs -r grep -L '"reason"' | wc -l)
+          {
+            echo "### Baseline"
+            echo ""
+            echo "- days cached: **$total**"
+            echo "- days with GDELT readings: **$with**"
+            if [ "$with" = "0" ]; then
+              echo ""
+              echo "GDELT answered on no days. If this runner has its own egress IP,"
+              echo "that is a real outage rather than the shared-address rate limit"
+              echo "seen from the dev sandbox."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
