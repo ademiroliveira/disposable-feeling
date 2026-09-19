@@ -53,7 +53,7 @@ export async function synthesizeMood(
   const base: MoodVector = {
     date: day.date,
     ...computed,
-    themes: pickThemes(scored),
+    themes: pickThemes(scored, computed, seed),
     title: makeTitle(computed, seed),
     seed,
     provenance: {

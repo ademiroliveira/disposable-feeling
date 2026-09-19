@@ -160,17 +160,57 @@ async (args) => {
   );
 
   const channels = [buffer.getChannelData(0), buffer.getChannelData(1)];
+  const left = channels[0];
+  const right = channels[1];
+
+  /*
+   * Descriptors of what actually came out, not of what was asked for.
+   *
+   * The Phase 0 gate needs to know that two different mood vectors produced
+   * two different-sounding tracks, and the surest way to be wrong about that
+   * is to measure the parameters instead of the audio. These four are cheap
+   * enough to compute here, while the buffer is still in memory:
+   *
+   *   rms       how loud it ended up
+   *   crest     peak over rms — a drone and a sequence of events differ here
+   *   zcr       zero crossings per second, a brightness proxy
+   *   lowRatio  share of energy under ~150 Hz, via a one-pole lowpass
+   */
+  const onePole = 1 - Math.exp((-2 * Math.PI * 150) / sampleRate);
+  let squared = 0;
   let peak = 0;
-  for (const channel of channels) {
-    for (let i = 0; i < channel.length; i++) {
-      const abs = Math.abs(channel[i]);
-      if (abs > peak) peak = abs;
-    }
+  let crossings = 0;
+  let previous = 0;
+  let lowSquared = 0;
+  let lowpass = 0;
+
+  for (let i = 0; i < left.length; i++) {
+    // Peak is taken per channel, not from the mono sum: the drone is panned
+    // wide, and a wide stereo image partly cancels when summed. Measuring the
+    // sum would make a perfectly loud track look like near-silence to the
+    // check below.
+    const l = Math.abs(left[i]);
+    const r = Math.abs(right[i]);
+    if (l > peak) peak = l;
+    if (r > peak) peak = r;
+
+    const sample = (left[i] + right[i]) * 0.5;
+    squared += sample * sample;
+    if (i > 0 && sample >= 0 !== previous >= 0) crossings++;
+    previous = sample;
+    lowpass += onePole * (sample - lowpass);
+    lowSquared += lowpass * lowpass;
   }
+
+  const rms = Math.sqrt(squared / left.length);
 
   return {
     published: { track: DF.publish(DF.encodeWav(channels, sampleRate), 'track') },
     peak: peak,
+    rms: rms,
+    crest: rms > 0 ? peak / rms : 0,
+    zcr: crossings / durationSeconds,
+    lowRatio: squared > 0 ? lowSquared / squared : 0,
     mode: modeName,
     rootHz: rootHz,
     partials: partials,

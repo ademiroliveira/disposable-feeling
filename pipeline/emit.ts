@@ -10,7 +10,12 @@ import { collectSignals, loadHistory } from '../agents/signals/index.ts';
 import { synthesizeMood } from '../agents/synthesis/index.ts';
 import { renderMusic } from '../agents/music/index.ts';
 import { renderPoster } from '../agents/poster/index.ts';
-import type { Emission, MoodVector, SignalSource } from '../schema/mood-vector.ts';
+import type {
+  DaySignals,
+  Emission,
+  MoodVector,
+  SignalSource,
+} from '../schema/mood-vector.ts';
 import { findFfmpeg, masterToMp3 } from '../lib/ffmpeg.ts';
 import { emissionDir } from '../lib/paths.ts';
 import type { RenderHost } from '../lib/render/host.ts';
@@ -31,6 +36,8 @@ export interface EmitOptions {
 export interface EmitResult {
   emission: Emission;
   mood: MoodVector;
+  /** What the day was actually built from, including what was missing. */
+  signals: DaySignals;
   audioPath: string;
   posterPath: string;
   thumbnailPath: string;
@@ -90,6 +97,7 @@ export async function emit(date: string, opts: EmitOptions): Promise<EmitResult>
   return {
     emission: stored,
     mood,
+    signals,
     audioPath,
     posterPath: poster.path,
     thumbnailPath: poster.thumbnailPath,

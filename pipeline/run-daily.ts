@@ -7,7 +7,6 @@
  *   npm run daily -- --date 2026-09-18 --offline
  */
 
-import { collectSignals } from '../agents/signals/index.ts';
 import { parseFlags } from '../lib/cli.ts';
 import { openRenderHost } from '../lib/render/host.ts';
 import { openStores, today } from '../lib/store.ts';
@@ -34,8 +33,7 @@ try {
   console.log(`  poster    ${result.posterPath}`);
   console.log(`  thumbnail ${result.thumbnailPath}`);
 
-  const signals = await collectSignals(date, { sources: flags.list('sources') as SignalSource[] | undefined });
-  for (const missing of signals.missing) {
+  for (const missing of result.signals.missing) {
     console.warn(`  ! ${missing.source} did not report: ${missing.reason}`);
   }
 } finally {

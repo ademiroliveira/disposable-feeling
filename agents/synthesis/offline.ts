@@ -42,22 +42,78 @@ export function themesFromHeadlines(headlines: string, count = 3): string[] {
     .map(([word]) => word);
 }
 
-/** Themes the sky and ground can supply when the news gives nothing. */
-function fallbackThemes(scored: ScoredMetric[]): string[] {
-  const themes: string[] = [];
+/**
+ * Themes the sky and ground can supply when the news gives nothing.
+ *
+ * Ordered by how much they were actually earned: a real moon phase and a real
+ * quake first, then a seeded draw from the quadrant's bank. The bank matters
+ * more than it looks — with GDELT unavailable, three constant fallback themes
+ * would make every day's themes identical, and `moodDistance` counts themes.
+ */
+function fallbackThemes(
+  scored: ScoredMetric[],
+  dimensions: Record<MoodDimension, number>,
+  seed: number,
+): string[] {
+  const earned: string[] = [];
+
   const moon = scored.find((m) => m.key === 'sky-ground.moon_illumination');
-  if (moon?.note) themes.push(moon.note);
+  if (moon?.note) earned.push(moon.note);
+
   const quake = scored.find((m) => m.key === 'sky-ground.quake_energy_log');
-  if (quake && quake.z > 0.3) themes.push('shaken ground');
+  if (quake && quake.z > 0.4) earned.push('shaken ground');
+
   const kp = scored.find((m) => m.key === 'sky-ground.kp_max');
-  if (kp && kp.z > 0.3) themes.push('geomagnetic storm');
-  return [...themes, 'ordinary weather', 'held breath', 'distant traffic'];
+  if (kp && kp.z > 0.4) earned.push('a disturbed magnetosphere');
+
+  const markets = scored.find((m) => m.key.endsWith('_volatility_pct'));
+  if (markets && Math.abs(markets.z) > 0.5) {
+    earned.push(markets.z > 0 ? 'churning markets' : 'flat markets');
+  }
+
+  const rng = makeRng(seed).fork('themes');
+  const bank = AMBIENT[quadrant(dimensions)];
+  const drawn: string[] = [];
+  while (drawn.length < 3) {
+    const candidate = rng.pick(bank);
+    if (!drawn.includes(candidate)) drawn.push(candidate);
+  }
+
+  return [...earned, ...drawn];
 }
 
-export function pickThemes(scored: ScoredMetric[]): [string, string, string] {
+/**
+ * What a day is like when nothing in particular happened. Eight per quadrant,
+ * so a seeded draw of three has enough room not to repeat itself across a
+ * month.
+ */
+const AMBIENT = {
+  calmPleasant: [
+    'long light', 'still water', 'open windows', 'a slow harbour',
+    'warm stone', 'nothing urgent', 'clean air', 'a wide afternoon',
+  ],
+  calmUnpleasant: [
+    'held breath', 'a grey corridor', 'unanswered post', 'low cloud',
+    'waiting rooms', 'the same as yesterday', 'closed shutters', 'thin rain',
+  ],
+  agitatedPleasant: [
+    'distant traffic', 'crowds moving', 'open markets', 'a loud kitchen',
+    'work half done', 'late trains running', 'wind off the sea', 'bright noise',
+  ],
+  agitatedUnpleasant: [
+    'sirens somewhere', 'a bad connection', 'too many tabs', 'hard frost',
+    'raised voices', 'a dropped signal', 'broken glass', 'nothing settled',
+  ],
+} as const;
+
+export function pickThemes(
+  scored: ScoredMetric[],
+  dimensions: Record<MoodDimension, number>,
+  seed: number,
+): [string, string, string] {
   const headlines = scored.find((m) => m.key === 'gdelt.headlines')?.note ?? '';
   const fromNews = headlines ? themesFromHeadlines(headlines) : [];
-  const pool = [...fromNews, ...fallbackThemes(scored)];
+  const pool = [...fromNews, ...fallbackThemes(scored, dimensions, seed)];
   const chosen: string[] = [];
   for (const theme of pool) {
     if (chosen.length === 3) break;
@@ -98,8 +154,13 @@ const TEMPLATES = [
   '{noun} in the {adj} hours',
   '{noun} and {noun2}',
   'nothing but {adj} {noun}',
-  'a {adj} kind of {noun}',
+  '{a} {adj} kind of {noun}',
 ] as const;
+
+/** Enough to keep "a open kind of signal" out of the archive. */
+function article(word: string): string {
+  return /^[aeiou]/i.test(word) ? 'an' : 'a';
+}
 
 function quadrant(d: Record<MoodDimension, number>): keyof typeof VOCAB {
   const pleasant = d.valence >= 0;
@@ -116,8 +177,10 @@ export function makeTitle(
   const bank = VOCAB[quadrant(dimensions)];
   const template = rng.pick(TEMPLATES);
   const noun = rng.pick(bank.noun);
+  const adjective = rng.pick(bank.adj);
   const title = template
-    .replace('{adj}', rng.pick(bank.adj))
+    .replace('{a}', article(adjective))
+    .replace('{adj}', adjective)
     .replace('{noun2}', rng.pick(bank.noun.filter((n) => n !== noun)))
     .replace('{noun}', noun);
 

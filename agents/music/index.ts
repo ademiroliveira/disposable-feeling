@@ -23,6 +23,11 @@ export const SAMPLE_RATE = 44_100;
 
 export interface MusicMeta extends PublishResult {
   peak: number;
+  /** Descriptors measured from the rendered audio; the variance gate reads them. */
+  rms: number;
+  crest: number;
+  zcr: number;
+  lowRatio: number;
   mode: string;
   rootHz: number;
   partials: number;

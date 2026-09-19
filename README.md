@@ -129,6 +129,14 @@ weather" and "average weather" are different facts.
 coverage, weighted by how much of it there is. This is stated on the site
 rather than quietly assumed.
 
+One operational note: GDELT's rate limit applies to the egress IP, not to your
+client. Behind a shared NAT or a proxy it will refuse every request — with
+HTTP 200 and a plain-text scolding — however politely you space them. The
+fetcher sniffs the body, backs off, and eventually records the source as
+missing rather than parsing the refusal as data. A day without GDELT is still
+a day; it loses the news tone and, on the offline synthesizer, its themes fall
+back to the sky-and-ground bank.
+
 **Until regions arrive in phase 4 there is one weather location**, set by
 `DF_WEATHER_PLACE`. The default is Reykjavík: high-latitude, fast-moving
 weather, so the signal actually moves day to day instead of reporting a
@@ -201,3 +209,10 @@ and the seed and returns PNG bytes.
 the same generator written twice, and `test/rng-parity.test.ts` asserts that
 they produce identical streams. If they ever drift, the music and the poster
 stop sharing a day and nothing else in the repo would notice.
+
+A day is reproducible, with one measured caveat. Re-rendering the same date
+gives a byte-identical poster; the audio comes back with the same composition
+and the same descriptors, but around 0.7% of samples differ by one LSB — about
+−90 dBFS, which is floating-point rounding inside Chromium's audio graph
+rather than a different piece of music. That is why the variance gate compares
+descriptors and not file hashes.

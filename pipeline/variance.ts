@@ -62,6 +62,11 @@ const RENDER_KEYS: Array<{ key: string; bucket?: number }> = [
   { key: 'music.partials' },
   { key: 'music.rootHz', bucket: 1 },
   { key: 'music.eventsPerMinute', bucket: 2 },
+  // Measured from the audio rather than from the parameters: two mood vectors
+  // can differ on paper and still render to the same thing.
+  { key: 'music.zcr', bucket: 25 },
+  { key: 'music.lowRatio', bucket: 0.04 },
+  { key: 'music.crest', bucket: 0.5 },
   { key: 'poster.cols' },
   { key: 'poster.accents' },
   { key: 'poster.inverted' },

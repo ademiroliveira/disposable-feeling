@@ -160,6 +160,10 @@ export async function openRenderHost(): Promise<RenderHost> {
   const browser: Browser = await puppeteer.launch({
     executablePath: resolveChromium(),
     headless: true,
+    // page.evaluate() is bounded by the CDP protocol timeout, not by
+    // setDefaultTimeout, and its default is three minutes. A six-minute drone
+    // on a cold CI runner can get close enough to that to matter.
+    protocolTimeout: 20 * 60_000,
     args: [
       // Containers and CI runners have no sandbox available and a 64 MB
       // /dev/shm, which a long offline audio render will happily exhaust.
