@@ -8,12 +8,12 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "signals": "node pipeline/signals.ts",
-    "daily": "node pipeline/run-daily.ts",
-    "backfill": "node pipeline/backfill.ts",
-    "ep": "node pipeline/run-ep.ts",
-    "expire": "node pipeline/expire.ts",
-    "variance": "node pipeline/variance-report.ts",
+    "signals": "node --env-file-if-exists=.env pipeline/signals.ts",
+    "daily": "node --env-file-if-exists=.env pipeline/run-daily.ts",
+    "backfill": "node --env-file-if-exists=.env pipeline/backfill.ts",
+    "ep": "node --env-file-if-exists=.env pipeline/run-ep.ts",
+    "expire": "node --env-file-if-exists=.env pipeline/expire.ts",
+    "variance": "node --env-file-if-exists=.env pipeline/variance-report.ts",
     "typecheck": "tsc --noEmit",
     "test": "node --test test/*.test.ts"
   },

@@ -88,12 +88,24 @@ export async function collectSignals(
     }),
   );
 
+  // Merge rather than replace. A call for a subset of sources — `--sources
+  // markets` while debugging one fetcher — must not throw away the rest of a
+  // day that took nine minutes of GDELT throttling to collect.
+  const previous = readCachedSignals(date);
+  const touched = new Set<string>(wanted);
+
   const day: DaySignals = {
     date,
-    readings: results.flatMap((r) => ('readings' in r ? r.readings : [])),
-    missing: results.flatMap((r) =>
-      'error' in r ? [{ source: r.source, reason: r.error }] : [],
-    ),
+    readings: [
+      ...(previous?.readings.filter((r) => !touched.has(r.source)) ?? []),
+      ...results.flatMap((r) => ('readings' in r ? r.readings : [])),
+    ],
+    missing: [
+      ...(previous?.missing.filter((m) => !touched.has(m.source)) ?? []),
+      ...results.flatMap((r) =>
+        'error' in r ? [{ source: r.source, reason: r.error }] : [],
+      ),
+    ],
   };
 
   writeFileSync(ensureParent(signalsCachePath(date)), JSON.stringify(day, null, 2));

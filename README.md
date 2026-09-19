@@ -33,6 +33,10 @@ npm test                 # unit tests, including RNG parity
 npm run typecheck
 ```
 
+`.env` is read by Node itself (`--env-file-if-exists`), so there is no dotenv
+dependency and the scripts work unchanged in CI, where the values come from
+repository secrets instead.
+
 ## Phase 0 first
 
 Phase 0 is a gate, not a warm-up. If thirty backfilled days all look and sound
