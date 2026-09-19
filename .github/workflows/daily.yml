@@ -1,0 +1,109 @@
+# One emission a day.
+#
+# GitHub Actions rather than a Vercel cron: rendering audio, a poster and the
+# weekly EP takes minutes, which is well past Vercel's serverless function
+# limit. Vercel only hosts the site.
+
+name: daily emission
+
+on:
+  schedule:
+    # 23:30 UTC — late enough that the day being emitted is nearly complete.
+    #
+    # An emission is dated for the day it reads, and the signals are fetched
+    # when the job runs, so an early-morning slot would read each day from its
+    # first few hours. Phase 0 scored complete 24-hour days; running early
+    # would mean production and the gate were measuring different things and
+    # the gate's verdict would not transfer. Emitting for *yesterday* instead
+    # would fix that and break weather, whose history is a paid plan — so the
+    # fix is to run late on the same day. Off the half hour because :00 is when
+    # every other cron on GitHub fires.
+    - cron: '30 23 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Date to emit (YYYY-MM-DD). Defaults to today.'
+        required: false
+
+concurrency:
+  group: daily-emission
+  cancel-in-progress: false
+
+jobs:
+  emit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
+      # The mood vector is scored against a rolling 30-day baseline, which
+      # lives in the signal cache. Without this the first run of every day
+      # would score everything as zero.
+      - name: Restore the signal cache
+        uses: actions/cache@v4
+        with:
+          path: out/signals
+          key: signals-${{ github.run_id }}
+          restore-keys: signals-
+
+      - name: Emit
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # The runner image ships Google Chrome; puppeteer-core never
+          # downloads a browser of its own.
+          PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome
+          # Through the environment, never interpolated into the script:
+          # a workflow_dispatch input is untrusted text.
+          DATE: ${{ inputs.date }}
+        run: |
+          if [ -n "$DATE" ]; then
+            npm run daily -- --date "$DATE"
+          else
+            npm run daily
+          fi
+
+      # The EP rides the last emission of the week rather than its own cron.
+      #
+      # Seven tracks over a seven-day expiry leaves no slack: a Monday track is
+      # gone at Monday+7 00:00 UTC, so an independently scheduled Monday job
+      # would be racing the sweep by minutes. Running it here, straight after
+      # Sunday's emission, makes the oldest track exactly six days old and
+      # removes the race instead of tuning it.
+      - name: Assemble the week's EP (Sundays)
+        if: success()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ "$(date -u +%u)" = "7" ]; then
+            npm run ep
+          else
+            echo "Not Sunday — the EP runs after the last emission of the week."
+          fi
+
+      # Worth keeping for a few days: if Supabase upload failed, this is the
+      # only copy of a day that cannot be regenerated identically once the
+      # signal APIs have moved on.
+      - name: Keep the emission as an artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emission-${{ github.run_id }}
+          path: out/emissions
+          retention-days: 7
+          if-no-files-found: ignore

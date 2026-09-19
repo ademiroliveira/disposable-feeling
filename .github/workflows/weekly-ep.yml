@@ -1,0 +1,58 @@
+# The EP, on demand.
+#
+# The scheduled assembly rides Sunday's daily run (see daily.yml): seven tracks
+# over a seven-day expiry leaves no slack, so the EP has to follow the last
+# emission of the week rather than race the sweep from its own cron. This
+# workflow is the manual path — re-running a week that failed, or assembling
+# one that ended on a different day.
+
+name: ep
+
+on:
+  workflow_dispatch:
+    inputs:
+      end:
+        description: 'Last day of the EP window (YYYY-MM-DD).'
+        required: false
+
+concurrency:
+  group: weekly-ep
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
+      - name: Assemble
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Through the environment, never interpolated into the script:
+          # a workflow_dispatch input is untrusted text.
+          END: ${{ inputs.end }}
+        run: |
+          if [ -n "$END" ]; then
+            npm run ep -- --end "$END"
+          else
+            npm run ep
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ep-${{ github.run_id }}
+          path: out/eps
+          retention-days: 14
+          if-no-files-found: error

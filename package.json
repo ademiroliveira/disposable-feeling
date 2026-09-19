@@ -1,0 +1,31 @@
+{
+  "name": "disposable-feeling",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A daily generative art release: agents read the mood of the world and turn it into music, a poster, and an EP.",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "signals": "node --env-file-if-exists=.env pipeline/signals.ts",
+    "daily": "node --env-file-if-exists=.env pipeline/run-daily.ts",
+    "backfill": "node --env-file-if-exists=.env pipeline/backfill.ts",
+    "ep": "node --env-file-if-exists=.env pipeline/run-ep.ts",
+    "expire": "node --env-file-if-exists=.env pipeline/expire.ts",
+    "variance": "node --env-file-if-exists=.env pipeline/variance-report.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.68.0",
+    "@supabase/supabase-js": "^2.58.0",
+    "p5": "^1.11.10",
+    "puppeteer-core": "^24.23.0",
+    "tone": "^15.2.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "typescript": "^5.9.2"
+  }
+}
