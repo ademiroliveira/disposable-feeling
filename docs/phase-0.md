@@ -12,8 +12,11 @@ npm run variance                    # re-scores the same days without rendering
 ```
 
 The raw report is written to `out/variance/2026-09-18-30d.json`, which is
-git-ignored. This file is the record, and [phase-0-days.md](phase-0-days.md)
-has all thirty days individually.
+git-ignored. This file is the record, [phase-0-days.md](phase-0-days.md) has
+all thirty days as a table, and `docs/index.html` is the same thirty days as a
+page — poster, waveform and partial comb each, re-sortable by any dimension.
+It is a static page with no build step: open it locally, or serve `docs/` with
+GitHub Pages.
 
 ## Why this ran first
 

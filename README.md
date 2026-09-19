@@ -67,7 +67,10 @@ Phase 0 variance gate — 30 days
 
 It exits non-zero on a fail, so it works as a check rather than as a thing you
 read and nod at. The run that unblocked Phase 1 is written up in
-[docs/phase-0.md](docs/phase-0.md), including what it did *not* get to test. `npm run variance` re-runs the analysis over whatever is
+[docs/phase-0.md](docs/phase-0.md), including what it did *not* get to test;
+`docs/index.html` is the same thirty days as a page you can look at and sort.
+Point GitHub Pages at `docs/` to publish it — note that Pages only serves a
+private repository on a paid plan. `npm run variance` re-runs the analysis over whatever is
 already in the archive without rendering anything — useful after changing the
 mood vector or the baseline window.
 
