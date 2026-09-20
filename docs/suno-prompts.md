@@ -44,6 +44,15 @@ shimmering detuned partials, a five-note figure slowly phasing apart,
 open sunlit reverb, spacious and still, clean air
 ```
 
+| phrase | why it is there |
+| --- | --- |
+| `bright`, `sunlit`, `airy` | valence +0.75 puts the cutoff at 2310 Hz, near the top of the 320–2600 range |
+| `G# lydian` | valence above +0.45 selects lydian, the brightest mode in the set; the root is G♯1 because low arousal sits the drone low |
+| `six shimmering detuned partials` | 6 partials, detuned 16.2 ¢ — coherence is only −0.05, so they shimmer rather than beat |
+| `five-note figure slowly phasing apart` | figure length 5, phase ratio 1.042, the furthest from 1 of the three days |
+| `spacious` | stereo width 0.51, mid-range |
+| `clean air` | the day's own theme, kept verbatim |
+
 ### glass and meadow — 2026-09-16
 
 The neutral one. A third of the steps are left empty, so the events are sparse
@@ -54,6 +63,16 @@ slow ambient drone, F# dorian, no percussion — warm sine sub-bass,
 six partials beating against each other, sparse triangle bells drifting
 out of phase, wide hall reverb, patient, still water
 ```
+
+| phrase | why it is there |
+| --- | --- |
+| `slow`, `sparse` | 14.0 events per minute is one note every four seconds, and a third of those steps are dropped outright |
+| `F# dorian` | valence +0.09 lands inside the −0.15…+0.15 band, which is dorian — the mode for a day on which nothing happened |
+| `warm sine sub-bass` | the first two partials are always sine waves, over a 46.2 Hz root |
+| `beating against each other` | 17.8 ¢ of detune, the most of the three days; audible as beating, not as shimmer |
+| `triangle bells` | the first of the two phasing voices is a triangle oscillator |
+| `wide hall reverb` | low arousal opens the room to 0.76 and the wet mix to 0.56 |
+| `still water` | the day's own theme, kept verbatim |
 
 ### nothing but burnt fracture — 2026-09-17
 
@@ -66,6 +85,21 @@ dark ambient drone, A phrygian, no percussion — muffled low-passed
 sub-bass, five beating partials, a four-note motif repeating almost in
 lockstep, narrow stereo image, heavy damp reverb, tense and airless
 ```
+
+| phrase | why it is there |
+| --- | --- |
+| `dark`, `muffled low-passed` | valence −0.49 drops the cutoff to 900 Hz, and clears the −0.45 line into phrygian by four hundredths |
+| `A phrygian` | the ♭2 mode, and a 55.0 Hz root — the highest of the three, because this day has the highest arousal |
+| `five beating partials` | the fewest of the three: partial count follows arousal and volatility, and volatility is −0.60 |
+| `four-note motif` / `almost in lockstep` | figure length 4 and phase ratio 1.022, both from that same low volatility — the motif is short *and* it barely moves |
+| `narrow stereo image` | width 0.29, volatility again |
+| `tense and airless` | two different dimensions: the tension is the mode and the cutoff, the airlessness is the width |
+
+It is also the loudest and most continuous of the three — rms 0.082, crest 7.2,
+both measured from the rendered audio rather than from the parameters. That is
+why it reads as pressure rather than as an empty room, and it is the one place
+where the descriptors caught something the parameter list alone would have
+missed.
 
 ## Two things that matter more than the wording
 
@@ -80,3 +114,5 @@ like one EP rather than three unrelated generations, and it is the same trick
 the pipeline pulls by handing one seed to every agent.
 
 The source tracks run 4:27 to 4:40, so expect one extend to match length.
+Track length is set by arousal alone — `270 − arousal × 75` seconds, calm
+days long and agitated ones short — which is why the three barely differ.
