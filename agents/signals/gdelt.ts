@@ -106,9 +106,6 @@ export async function fetchGdelt(
   const tonePoints = seriesPoints(tone);
   if (tonePoints.length === 0) throw new Error('GDELT returned no tone points');
 
-  const volume = await gdeltJson<TimelineResponse>({ ...window, mode: 'timelinevolraw' });
-  const volumePoints = seriesPoints(volume);
-
   const readings: SignalReading[] = [
     {
       source: 'gdelt',
@@ -128,6 +125,20 @@ export async function fetchGdelt(
       affects: { volatility: 1, coherence: -1 },
     },
   ];
+
+  // Volume is a second request, and every GDELT request is a coin flip the
+  // house usually wins. Letting a volume refusal discard a tone reading that
+  // did land is how a day ends up with no news signal at all: measured over
+  // thirty days, needing both meant 2 days answered where tone alone would
+  // have answered roughly eight.
+  let volumePoints: number[] = [];
+  try {
+    volumePoints = seriesPoints(
+      await gdeltJson<TimelineResponse>({ ...window, mode: 'timelinevolraw' }),
+    );
+  } catch {
+    // Costs arousal one input and volatility one of several. Tone survives.
+  }
 
   if (volumePoints.length > 0) {
     readings.push({
