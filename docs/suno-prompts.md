@@ -10,6 +10,10 @@ different generator is holding the brush. It is also a crude check on the
 variance gate: if three consecutive days can be told apart in a paragraph of
 plain English, they were probably distinguishable as audio.
 
+Whether any of this should be wired into the pipeline is a separate question,
+answered in [remote-music.md](remote-music.md). The short version is no: there
+is no Suno API to wire.
+
 ## What the renderer chose
 
 From [phase-0-days.md](phase-0-days.md) and the parameter derivations in
