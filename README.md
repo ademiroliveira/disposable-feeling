@@ -116,7 +116,7 @@ recorded in `mood.provenance.synthesizer`, so the archive never has to guess.
 
 | Source | Key | History | Notes |
 | --- | --- | --- | --- |
-| GDELT | no | full | One request per five seconds, and it refuses with HTTP 200. **Expect it to be absent most days** |
+| GDELT | no | full | 15-minute export files, ~40–130 KB each; 24 sampled per day |
 | CoinGecko | optional | 365 days | Crypto because it trades at weekends |
 | OpenWeatherMap | yes | **paid** | Present day only; backfill goes without it |
 | NOAA space weather | no | 7 days | GFZ Potsdam is the fallback for older days |
@@ -137,18 +137,31 @@ weather" and "average weather" are different facts.
 coverage, weighted by how much of it there is. This is stated on the site
 rather than quietly assumed.
 
-One operational note, measured rather than assumed. GDELT refuses far more
-often than it answers, and not only from shared addresses: a 30-day warm-up
-from a GitHub runner with its own egress IP got **2 days out of 30**, with the
-fetcher backing off for up to 96 seconds on each attempt. The two that got
-through confirm the query is fine — this is availability, not correctness.
+**GDELT is read from the raw export files, not the DOC 2.0 API**, and that is
+worth explaining because the API is the obvious choice and it does not work
+here. Measured, not assumed:
 
-So treat GDELT as a bonus signal rather than a dependency. The fetcher sniffs
-the body, backs off, and records the source as missing rather than parsing the
-refusal as data. A day without it is still a day; it loses the news tone and,
-on the offline synthesizer, its themes fall back to the sky-and-ground bank.
-This is the strongest argument for the sky-and-ground sources: they answer
-every time, and Phase 0 passed on them alone.
+- **It refuses about nine requests in ten.** A 30-day warm-up from a GitHub
+  runner with its own egress IP got 2 days out of 30, backing off up to 96
+  seconds per attempt. The rate limit is not about your spacing.
+- **It lags about a week.** Two ranged requests with different windows both
+  stopped at the same date, seven days back. The API has no settled data for
+  the day this pipeline is emitting, so no retry strategy could have helped.
+
+The export files have neither problem: static objects on a CDN, published every
+15 minutes, 40–130 KB each, history back to 2015. The fetcher samples 24 slots
+across the day (`GDELT_SLOTS_PER_DAY`), which is a couple of megabytes and
+gives a better `tone_spread` than the API did — dispersion measured across
+individual events rather than across pre-averaged buckets. It is also what
+GDELT's own rate-limit notice tells high-traffic users to do.
+
+Two consequences. Tone is now per *event* rather than per article, so its
+absolute level differs; that is invisible downstream, because every metric is
+scored against its own rolling baseline, but a baseline built from API values
+cannot be compared with these. And headlines are the one thing the export files
+do not carry, so themes fall back to the seeded word bank until
+`ANTHROPIC_API_KEY` is set — at which point Claude writes them from the signals
+anyway.
 
 **Until regions arrive in phase 4 there is one weather location**, set by
 `DF_WEATHER_PLACE`. The default is Reykjavík: high-latitude, fast-moving

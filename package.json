@@ -21,6 +21,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
     "@supabase/supabase-js": "^2.58.0",
+    "fflate": "^0.8.3",
     "p5": "^1.11.10",
     "puppeteer-core": "^24.23.0",
     "tone": "^15.2.2"

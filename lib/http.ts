@@ -71,6 +71,33 @@ export async function getJson<T>(url: string, opts: GetOptions = {}): Promise<T>
   }
 }
 
+/** Fetch bytes. Used for GDELT's zipped export files. */
+export async function getBuffer(url: string, opts: GetOptions = {}): Promise<Buffer> {
+  const { timeoutMs = 45_000, retries = 2, headers = {} } = opts;
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    if (attempt > 0) await sleep(1000 * 2 ** (attempt - 1));
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: { 'user-agent': USER_AGENT, ...headers },
+      });
+      if (!res.ok) throw new FetchError(`${res.status} from ${hostOf(url)}`, res.status);
+      return Buffer.from(await res.arrayBuffer());
+    } catch (err) {
+      lastError = err;
+      // A missing slot is a permanent 404; only transient failures are worth another go.
+      if (err instanceof FetchError && err.status === 404) break;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  throw lastError instanceof Error ? lastError : new FetchError(`failed to fetch ${hostOf(url)}`);
+}
+
 /** Fetch a URL straight to disk. Used to pull expiring audio back for the EP. */
 export async function download(url: string, dest: string): Promise<string> {
   const res = await fetch(url);
