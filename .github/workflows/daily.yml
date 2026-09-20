@@ -54,8 +54,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: out/signals
-          key: signals-${{ github.run_id }}
-          restore-keys: signals-
+          # The key carries a version because a cached day is only reusable
+          # while the signals in it still mean the same thing. GDELT tone moved
+          # from the DOC API's per-article scale to the export files' per-event
+          # scale, which is a different number for the same name — and the
+          # collector reuses a cached day rather than refetching it, so without
+          # this the baseline would quietly mix the two. Bump it whenever a
+          # metric's units or source change.
+          key: signals-v2-${{ github.run_id }}
+          restore-keys: signals-v2-
 
       # Which day this run is for, decided once and reused, because a delayed
       # slot must not silently re-point either the emission or the EP.
