@@ -116,7 +116,7 @@ recorded in `mood.provenance.synthesizer`, so the archive never has to guess.
 
 | Source | Key | History | Notes |
 | --- | --- | --- | --- |
-| GDELT | no | full | One request per five seconds, and it refuses with HTTP 200 |
+| GDELT | no | full | 15-minute export files, ~40–130 KB each; 24 sampled per day |
 | CoinGecko | optional | 365 days | Crypto because it trades at weekends |
 | OpenWeatherMap | yes | **paid** | Present day only; backfill goes without it |
 | NOAA space weather | no | 7 days | GFZ Potsdam is the fallback for older days |
@@ -137,13 +137,31 @@ weather" and "average weather" are different facts.
 coverage, weighted by how much of it there is. This is stated on the site
 rather than quietly assumed.
 
-One operational note: GDELT's rate limit applies to the egress IP, not to your
-client. Behind a shared NAT or a proxy it will refuse every request — with
-HTTP 200 and a plain-text scolding — however politely you space them. The
-fetcher sniffs the body, backs off, and eventually records the source as
-missing rather than parsing the refusal as data. A day without GDELT is still
-a day; it loses the news tone and, on the offline synthesizer, its themes fall
-back to the sky-and-ground bank.
+**GDELT is read from the raw export files, not the DOC 2.0 API**, and that is
+worth explaining because the API is the obvious choice and it does not work
+here. Measured, not assumed:
+
+- **It refuses about nine requests in ten.** A 30-day warm-up from a GitHub
+  runner with its own egress IP got 2 days out of 30, backing off up to 96
+  seconds per attempt. The rate limit is not about your spacing.
+- **It lags about a week.** Two ranged requests with different windows both
+  stopped at the same date, seven days back. The API has no settled data for
+  the day this pipeline is emitting, so no retry strategy could have helped.
+
+The export files have neither problem: static objects on a CDN, published every
+15 minutes, 40–130 KB each, history back to 2015. The fetcher samples 24 slots
+across the day (`GDELT_SLOTS_PER_DAY`), which is a couple of megabytes and
+gives a better `tone_spread` than the API did — dispersion measured across
+individual events rather than across pre-averaged buckets. It is also what
+GDELT's own rate-limit notice tells high-traffic users to do.
+
+Two consequences. Tone is now per *event* rather than per article, so its
+absolute level differs; that is invisible downstream, because every metric is
+scored against its own rolling baseline, but a baseline built from API values
+cannot be compared with these. And headlines are the one thing the export files
+do not carry, so themes fall back to the seeded word bank until
+`ANTHROPIC_API_KEY` is set — at which point Claude writes them from the signals
+anyway.
 
 **Until regions arrive in phase 4 there is one weather location**, set by
 `DF_WEATHER_PLACE`. The default is Reykjavík: high-latitude, fast-moving
@@ -184,6 +202,11 @@ each other.
     is read from its first few hours, which is not what Phase 0 scored.
     Emitting for yesterday instead would fix that and break weather, whose
     history is a paid plan.
+  - The date comes from the *slot*, not the clock. GitHub delays scheduled runs
+    routinely — the first live run arrived two hours late, at 01:30 — and a run
+    that slips past midnight would otherwise date itself for a day ninety
+    minutes old. `emissionDate()` anchors it; drift costs weather and nothing
+    else.
   - The **EP rides Sunday's run** rather than its own cron. Seven tracks over a
     seven-day expiry leaves no slack, so an independently scheduled Monday job
     would race the sweep by minutes. `weekly-ep.yml` is the manual re-run path.

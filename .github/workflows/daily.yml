@@ -54,8 +54,20 @@ jobs:
         uses: actions/cache@v4
         with:
           path: out/signals
-          key: signals-${{ github.run_id }}
-          restore-keys: signals-
+          # The key carries a version because a cached day is only reusable
+          # while the signals in it still mean the same thing. GDELT tone moved
+          # from the DOC API's per-article scale to the export files' per-event
+          # scale, which is a different number for the same name — and the
+          # collector reuses a cached day rather than refetching it, so without
+          # this the baseline would quietly mix the two. Bump it whenever a
+          # metric's units or source change.
+          key: signals-v2-${{ github.run_id }}
+          restore-keys: signals-v2-
+
+      # Which day this run is for, decided once and reused, because a delayed
+      # slot must not silently re-point either the emission or the EP.
+      - name: Work out the emission date
+        run: echo "DF_DATE=$(node pipeline/emission-date.ts)" >> "$GITHUB_ENV"
 
       - name: Emit
         env:
@@ -70,12 +82,7 @@ jobs:
           # Through the environment, never interpolated into the script:
           # a workflow_dispatch input is untrusted text.
           DATE: ${{ inputs.date }}
-        run: |
-          if [ -n "$DATE" ]; then
-            npm run daily -- --date "$DATE"
-          else
-            npm run daily
-          fi
+        run: npm run daily -- --date "${DATE:-$DF_DATE}"
 
       # The EP rides the last emission of the week rather than its own cron.
       #
@@ -89,11 +96,15 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DATE: ${{ inputs.date }}
         run: |
-          if [ "$(date -u +%u)" = "7" ]; then
-            npm run ep
+          day="${DATE:-$DF_DATE}"
+          # Day-of-week of the emission, not of the runner's clock: a slot
+          # delivered after midnight would otherwise skip the week entirely.
+          if [ "$(date -u -d "$day" +%u)" = "7" ]; then
+            npm run ep -- --end "$day"
           else
-            echo "Not Sunday — the EP runs after the last emission of the week."
+            echo "$day is not a Sunday — the EP runs after the last emission of the week."
           fi
 
       # Worth keeping for a few days: if Supabase upload failed, this is the

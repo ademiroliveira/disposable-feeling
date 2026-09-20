@@ -29,9 +29,26 @@ const window = new Set(dateRange(end, EP_TRACKS));
 const store = readStore();
 const emissions = (await store.list()).filter((emission) => window.has(emission.date));
 
+/**
+ * An archive younger than one EP is a stage every archive passes through, not
+ * a failure. This runs chained to Sunday's emission, so throwing here turns a
+ * successful day red for the whole of the first week — and a red build nobody
+ * can act on is a red build people learn to ignore.
+ *
+ * `--require` is for when you do want the non-zero exit: re-running a week
+ * that should have worked.
+ */
+function giveUp(reason: string): never {
+  if (flags.bool('require')) {
+    console.error(reason);
+    process.exit(1);
+  }
+  console.log(`${reason} — skipping.`);
+  process.exit(0);
+}
+
 if (emissions.length === 0) {
-  console.error(`no emissions in ${dateRange(end, EP_TRACKS)[0]} .. ${end} (${store.name})`);
-  process.exit(2);
+  giveUp(`no emissions in ${dateRange(end, EP_TRACKS)[0]} .. ${end} (${store.name})`);
 }
 
 /**
@@ -59,6 +76,13 @@ for (const emission of emissions) {
   } catch (err) {
     console.warn(`  ${emission.date}: could not fetch audio (${describeError(err)})`);
   }
+}
+
+if (localAudio.size < 2) {
+  giveUp(
+    `only ${localAudio.size} of ${emissions.length} days in ${dateRange(end, EP_TRACKS)[0]} .. ${end} ` +
+      'still have audio; an EP needs at least two',
+  );
 }
 
 const ep = await publishEp(
