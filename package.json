@@ -15,7 +15,8 @@
     "expire": "node --env-file-if-exists=.env pipeline/expire.ts",
     "variance": "node --env-file-if-exists=.env pipeline/variance-report.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --test test/*.test.ts"
+    "test": "node --test test/*.test.ts",
+    "emission-date": "node pipeline/emission-date.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",

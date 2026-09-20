@@ -9,12 +9,15 @@
 
 import { parseFlags } from '../lib/cli.ts';
 import { openRenderHost } from '../lib/render/host.ts';
-import { openStores, today } from '../lib/store.ts';
+import { emissionDate } from '../lib/dates.ts';
+import { openStores } from '../lib/store.ts';
 import type { SignalSource } from '../schema/mood-vector.ts';
 import { describeEmission, emit } from './emit.ts';
 
 const flags = parseFlags();
-const date = flags.get('date') ?? today();
+// Not today(): a delayed 23:30 slot must still emit for the day it was
+// scheduled against. See emissionDate().
+const date = flags.get('date') ?? emissionDate();
 
 console.log(`disposable feeling — emission for ${date}`);
 

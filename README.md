@@ -116,7 +116,7 @@ recorded in `mood.provenance.synthesizer`, so the archive never has to guess.
 
 | Source | Key | History | Notes |
 | --- | --- | --- | --- |
-| GDELT | no | full | One request per five seconds, and it refuses with HTTP 200 |
+| GDELT | no | full | One request per five seconds, and it refuses with HTTP 200. **Expect it to be absent most days** |
 | CoinGecko | optional | 365 days | Crypto because it trades at weekends |
 | OpenWeatherMap | yes | **paid** | Present day only; backfill goes without it |
 | NOAA space weather | no | 7 days | GFZ Potsdam is the fallback for older days |
@@ -137,13 +137,18 @@ weather" and "average weather" are different facts.
 coverage, weighted by how much of it there is. This is stated on the site
 rather than quietly assumed.
 
-One operational note: GDELT's rate limit applies to the egress IP, not to your
-client. Behind a shared NAT or a proxy it will refuse every request — with
-HTTP 200 and a plain-text scolding — however politely you space them. The
-fetcher sniffs the body, backs off, and eventually records the source as
-missing rather than parsing the refusal as data. A day without GDELT is still
-a day; it loses the news tone and, on the offline synthesizer, its themes fall
-back to the sky-and-ground bank.
+One operational note, measured rather than assumed. GDELT refuses far more
+often than it answers, and not only from shared addresses: a 30-day warm-up
+from a GitHub runner with its own egress IP got **2 days out of 30**, with the
+fetcher backing off for up to 96 seconds on each attempt. The two that got
+through confirm the query is fine — this is availability, not correctness.
+
+So treat GDELT as a bonus signal rather than a dependency. The fetcher sniffs
+the body, backs off, and records the source as missing rather than parsing the
+refusal as data. A day without it is still a day; it loses the news tone and,
+on the offline synthesizer, its themes fall back to the sky-and-ground bank.
+This is the strongest argument for the sky-and-ground sources: they answer
+every time, and Phase 0 passed on them alone.
 
 **Until regions arrive in phase 4 there is one weather location**, set by
 `DF_WEATHER_PLACE`. The default is Reykjavík: high-latitude, fast-moving
@@ -184,6 +189,11 @@ each other.
     is read from its first few hours, which is not what Phase 0 scored.
     Emitting for yesterday instead would fix that and break weather, whose
     history is a paid plan.
+  - The date comes from the *slot*, not the clock. GitHub delays scheduled runs
+    routinely — the first live run arrived two hours late, at 01:30 — and a run
+    that slips past midnight would otherwise date itself for a day ninety
+    minutes old. `emissionDate()` anchors it; drift costs weather and nothing
+    else.
   - The **EP rides Sunday's run** rather than its own cron. Seven tracks over a
     seven-day expiry leaves no slack, so an independently scheduled Monday job
     would race the sweep by minutes. `weekly-ep.yml` is the manual re-run path.

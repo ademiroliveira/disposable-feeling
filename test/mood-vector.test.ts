@@ -9,7 +9,7 @@ import {
 } from '../schema/mood-vector.ts';
 import type { MoodVector } from '../schema/mood-vector.ts';
 import { sequenceForContrast } from '../agents/ep-assembly/index.ts';
-import { dateRange, daysBetween, addDays } from '../lib/dates.ts';
+import { dateRange, daysBetween, addDays, emissionDate } from '../lib/dates.ts';
 
 function mood(date: string, overrides: Partial<MoodVector> = {}): MoodVector {
   return {
@@ -78,6 +78,22 @@ test('EP sequencing opens with the most extreme day and alternates', () => {
   assert.equal(ordered[1]!.date, '2026-09-03');
   // Every day appears exactly once.
   assert.equal(new Set(ordered.map((m) => m.date)).size, 3);
+});
+
+test('a delayed run still emits for the day it was scheduled against', () => {
+  // The slot is 23:30 UTC; GitHub routinely delivers scheduled runs late.
+  const onTime = new Date('2026-09-19T23:30:00Z');
+  const delayed = new Date('2026-09-20T01:30:00Z');
+  assert.equal(emissionDate(onTime), '2026-09-19');
+  assert.equal(
+    emissionDate(delayed),
+    '2026-09-19',
+    'two hours late must not re-point the emission at a day 90 minutes old',
+  );
+  // Far enough into the next day and yesterday is still the complete one.
+  assert.equal(emissionDate(new Date('2026-09-20T12:00:00Z')), '2026-09-19');
+  // Back inside the slot's own window.
+  assert.equal(emissionDate(new Date('2026-09-20T18:00:00Z')), '2026-09-20');
 });
 
 test('date helpers are UTC and inclusive', () => {
